@@ -1,0 +1,150 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <style>
+      body {
+        margin: 0px;
+        padding: 0px;
+      }
+    </style>
+    <script src="socket.io/socket.io.js"></script>
+    <link rel="stylesheet" type="text/css" href="style.css">
+  </head>
+  <body onload="ready()">
+    <script>
+    function ready() {
+
+      document.getElementById("fly").onclick = function() {
+        executeFlightPlan();
+      };
+
+      document.getElementById("land").onclick = function() {
+        land();
+      };
+
+      document.getElementById("takeoff").onclick = function() {
+        takeoff();
+      };
+
+      var flightPlan = [];
+      var lastPoint = {x:500, y:500};
+
+      var canvas = document.getElementById('pad');
+      var context = canvas.getContext('2d');
+
+      canvas.addEventListener('mousemove', function(evt) {
+        var mousePos = getMousePos(canvas, evt);
+      }, false);
+
+      canvas.addEventListener('mousedown', function(evt) {
+        var mousePos = getMousePos(canvas, evt);
+        console.log(mousePos);
+        context.beginPath();
+        context.moveTo(lastPoint.x, lastPoint.y);
+        context.lineTo(mousePos.x, mousePos.y);
+        context.fillRect(mousePos.x,mousePos.y,10,10);
+        context.stroke();
+        lastPoint = mousePos;
+
+        var pushPos = {};
+        pushPos.x = mousePos.x - (canvas.width / 2);
+        pushPos.y = (canvas.height / 2) - mousePos.y;
+        flightPlan.push(pushPos);
+      }, false);
+
+      initializeCanvas(canvas);
+
+      function executeFlightPlan() {
+        socket.emit('fly', flightPlan);
+        flightPlan = [];
+        initializeCanvas(canvas);
+      }
+
+      var lastX = 0;
+      var lastY = 0;
+
+      var socket = io.connect('http://localhost:8080');
+
+      function round(num) {
+        var rounded = parseInt(num/gridRes) * gridRes;
+        // console.log(rounded);
+        return rounded;
+      }
+
+      function writeMessage(canvas, message) {
+        document.getElementById('velText').innerHTML = message;
+      }
+
+      function getMousePos(canvas, evt) {
+        var rect = canvas.getBoundingClientRect();
+
+        return {
+          x: evt.clientX - rect.left,
+          y: evt.clientY - rect.top
+        };
+      }
+
+      function land() {
+        socket.emit('land');
+      }
+
+      function takeoff() {
+        socket.emit('takeoff');
+      } 
+
+      function initializeCanvas(canvas) {
+
+        lastPoint = {x:500, y:500};
+
+        context.clearRect(0,0,canvas.width,canvas.height);
+
+        var width = canvas.width;
+        var height = canvas.height;
+
+        var gridDiv = 10;
+        var gridRes = width / gridDiv;
+
+        for (var x = 0.5; x < width; x += gridRes) {
+          context.moveTo(x, 0);
+          context.lineTo(x, width);
+        }
+
+        for (var x = 0.5; x < width; x += (width / 2)) {
+          context.moveTo(x-1, 0);
+          context.lineTo(x-1, width);
+          context.moveTo(x+1, 0);
+          context.lineTo(x+1, width);
+        }
+
+        for (var y = 0.5; y < height; y += gridRes) {
+          context.moveTo(0, y);
+          context.lineTo(height, y);
+        }
+
+        for (var y = 0.5; y < height; y += (height / 2)) {
+          context.moveTo(0, y-1);
+          context.lineTo(height, y-1);
+          context.moveTo(0, y+1);
+          context.lineTo(height, y+1);
+        }
+
+        context.strokeStyle = "#eee";
+        context.stroke();
+
+        context.fillRect(lastPoint.x,lastPoint.y,10,10);
+
+      }
+
+    }
+
+    </script>
+
+    <div class="container">
+      <canvas id="pad" width="1000" height="1000"></canvas>
+      <p id="velText"></p>
+      <a id="fly">FLY!</a>
+      <a id="takeoff">TAKEOFF!</a>
+      <a id="land">LAND!</a>
+    </div>
+  </body>
+</html>
